@@ -1,0 +1,59 @@
+# docker-compose.forge.yml
+# AOS-Forge production deployment on Hetzner CPX41
+# Deltas applied: 1 (External Postgres), 2 (Authenticated), 3 (Strict Secrets), 4 (Stateless)
+
+services:
+  forge:
+    build: .
+    container_name: aos-forge
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    environment:
+      - PORT=3100
+      - HOST=0.0.0.0
+      - PAPERCLIP_DEPLOYMENT_MODE=authenticated
+      - PAPERCLIP_DEPLOYMENT_EXPOSURE=private
+      - PAPERCLIP_HOME=/data/paperclip
+      - DATABASE_URL=postgres://forge:${POSTGRES_PASSWORD}@db:5432/forge
+      - PAPERCLIP_SECRETS_STRICT_MODE=true
+      - SERVE_UI=true
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - PAPERCLIP_PUBLIC_URL=http://100.69.6.83:3100
+      - FORGE_STATELESS=true
+    env_file:
+      - .env
+    volumes:
+      - forge-data:/data/paperclip
+      - paperclip-home:/paperclip
+      - /root/repos:/repos
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3100/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  db:
+    image: postgres:17-alpine
+    container_name: aos-forge-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: forge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: forge
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  forge-data:
+  postgres-data:
+  paperclip-home:

@@ -235,7 +235,10 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const canResumeSession =
     runtimeSessionId.length > 0 &&
     (runtimeSessionCwd.length === 0 || path.resolve(runtimeSessionCwd) === path.resolve(cwd));
-  const sessionId = canResumeSession ? runtimeSessionId : null;
+  let sessionId = canResumeSession ? runtimeSessionId : null;
+  // AOS-Forge Delta 4: Stateless adapter override (FORGE_STATELESS=true)
+  // Every heartbeat starts fresh; PMMS v2.0 boot sequence handles continuity.
+  if (process.env.FORGE_STATELESS === 'true') sessionId = null;
   if (runtimeSessionId && !canResumeSession) {
     await onLog(
       "stdout",
